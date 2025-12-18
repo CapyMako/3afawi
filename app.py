@@ -1,99 +1,45 @@
-import os
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
-from flask import Flask
+import os
+import http.server
+import socketserver
 import threading
 
-# Load environment variables
-load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
+# ========== SIMPLE HTTP SERVER ==========
+class HealthHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'Bot is alive!')
+    
+    def log_message(self, format, *args):
+        pass  # Suppress logs
 
-# Check if token exists
-if not TOKEN:
-    print("❌ ERROR: DISCORD_TOKEN not found!")
-    exit(1)
+def run_http_server():
+    with socketserver.TCPServer(("", 8080), HealthHandler) as httpd:
+        print(f"🌐 HTTP server running on port 8080")
+        httpd.serve_forever()
 
-# ======================
-# FLASK SERVER FOR PINGER
-# ======================
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is alive!", 200
-
-@app.route('/health')
-def health():
-    return "OK", 200
-
-def run_flask():
-    """Run Flask server in a separate thread"""
-    app.run(host='0.0.0.0', port=8080)
-
-# ======================
-# DISCORD BOT
-# ======================
-# Set up Discord intents
+# ========== DISCORD BOT ==========
+# Your actual bot code
 intents = discord.Intents.default()
 intents.message_content = True
-
-# Create bot instance
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'✅ Bot is ready! Logged in as {bot.user.name}')
-    print(f'🔗 Invite URL: https://discord.com/oauth2/authorize?client_id={bot.user.id}&scope=bot&permissions=8')
-    
-    # Set status
-    await bot.change_presence(
-        activity=discord.Activity(
-            type=discord.ActivityType.listening,
-            name="!help"
-        )
-    )
+    print(f'✅ Bot ready: {bot.user}')
 
-@bot.command(name='ping')
+@bot.command()
 async def ping(ctx):
-    """Check bot latency"""
-    latency = round(bot.latency * 1000)
-    await ctx.send(f'🏓 Pong! {latency}ms')
+    await ctx.send('Pong!')
 
-@bot.command(name='hello')
-async def hello(ctx):
-    """Say hello"""
-    await ctx.send(f'👋 Hello {ctx.author.mention}!')
-
-@bot.command(name='help')
-async def help_command(ctx):
-    """Show help menu"""
-    embed = discord.Embed(
-        title="🤖 Bot Commands",
-        description="Here are all available commands:",
-        color=discord.Color.blue()
-    )
-    embed.add_field(name="!ping", value="Check bot latency", inline=False)
-    embed.add_field(name="!hello", value="Get a greeting", inline=False)
-    embed.add_field(name="!help", value="Show this menu", inline=False)
-    embed.set_footer(text=f"Requested by {ctx.author.name}")
-    await ctx.send(embed=embed)
-
-# ======================
-# MAIN EXECUTION
-# ======================
+# ========== START EVERYTHING ==========
 if __name__ == '__main__':
-    print("🚀 Starting Discord bot with Flask server...")
-    
-    # Start Flask in a daemon thread (will close when main thread closes)
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    print("🌐 Flask server started on port 8080")
+    # Start HTTP server in background thread
+    http_thread = threading.Thread(target=run_http_server, daemon=True)
+    http_thread.start()
     
     # Start Discord bot
-    try:
-        bot.run(TOKEN)
-    except discord.errors.LoginFailure:
-        print("❌ Invalid Discord token! Check your environment variables.")
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    bot.run(os.getenv('DISCORD_TOKEN'))
