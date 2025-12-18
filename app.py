@@ -1,36 +1,51 @@
 import os
-import discord
-from discord.ext import commands
+import sys
+import logging
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Set up logging first
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 
-# Get the token from .env
+# Check for token
 TOKEN = os.getenv('DISCORD_TOKEN')
+if not TOKEN:
+    logger.error("❌ DISCORD_TOKEN not found in environment variables!")
+    logger.info("Make sure you've set it in Render dashboard → Environment")
+    sys.exit(1)
 
-# Check if token exists
-if TOKEN is None:
-    print("❌ ERROR: DISCORD_TOKEN not found in .env file!")
-    print("Make sure your .env file contains: DISCORD_TOKEN=your_token_here")
-    exit(1)
+try:
+    import discord
+    from discord.ext import commands
+    logger.info("✅ Successfully imported discord.py")
+except ImportError as e:
+    logger.error(f"❌ Failed to import discord.py: {e}")
+    logger.info("Try using py-cord instead: pip install py-cord")
+    sys.exit(1)
 
-# Set up bot with command prefix and intents
+# Set up bot with minimal intents
 intents = discord.Intents.default()
-intents.message_content = True  # Required to read message content
-intents.members = True          # If you want to access member info
+intents.message_content = True
 
-# Create bot instance
-bot = commands.Bot(command_prefix='!', intents=intents)
+# Create bot
+bot = commands.Bot(
+    command_prefix='!',
+    intents=intents,
+    help_command=None  # We'll add custom help
+)
 
-# Event: When bot is ready
 @bot.event
 async def on_ready():
-    print(f'✅ Logged in as {bot.user.name} (ID: {bot.user.id})')
-    print(f'🎯 Connected to {len(bot.guilds)} guilds')
-    print('------')
+    logger.info(f'✅ Logged in as {bot.user.name}')
+    logger.info(f'📊 Connected to {len(bot.guilds)} servers')
     
-    # Set bot status
+    # Simple status
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.listening,
@@ -38,91 +53,98 @@ async def on_ready():
         )
     )
 
-# Command: !ping
-@bot.command(name='ping', help='Check if the bot is alive')
+# Basic commands
+@bot.command(name='ping')
 async def ping(ctx):
-    # Calculate latency
-    latency = round(bot.latency * 1000)  # Convert to milliseconds
-    
-    # Create embed for nicer response
-    embed = discord.Embed(
-        title="🏓 Pong!",
-        description=f"Latency: **{latency}ms**",
-        color=discord.Color.green()
-    )
-    
-    await ctx.send(embed=embed)
+    """Check bot latency"""
+    latency = round(bot.latency * 1000)
+    await ctx.send(f'🏓 Pong! {latency}ms')
 
-# Command: !hello
-@bot.command(name='hello', help='Say hello to the bot')
-async def hello(ctx):
-    # Mention the user who invoked the command
-    await ctx.send(f'👋 Hello {ctx.author.mention}! How can I help you today?')
-
-# Command: !info
-@bot.command(name='info', help='Get bot information')
-async def info(ctx):
+@bot.command(name='help')
+async def help_command(ctx):
+    """Show available commands"""
     embed = discord.Embed(
-        title="🤖 Bot Information",
-        description="A simple Discord bot created with discord.py",
+        title="🤖 Bot Help",
+        description="Available commands:",
         color=discord.Color.blue()
     )
     
-    embed.add_field(name="Creator", value="Your Name", inline=True)
-    embed.add_field(name="Library", value="discord.py", inline=True)
-    embed.add_field(name="Prefix", value="!", inline=True)
-    embed.add_field(name="Server Count", value=len(bot.guilds), inline=True)
-    embed.add_field(name="User Count", value=len(bot.users), inline=True)
-    embed.add_field(name="Uptime", value="Online", inline=True)
+    commands_list = [
+        ("!ping", "Check bot latency"),
+        ("!hello", "Get a greeting"),
+        ("!info", "Bot information"),
+        ("!server", "Server information")
+    ]
     
-    embed.set_footer(text=f"Requested by {ctx.author.name}")
+    for cmd, desc in commands_list:
+        embed.add_field(name=cmd, value=desc, inline=False)
     
     await ctx.send(embed=embed)
 
-# Command: !echo
-@bot.command(name='echo', help='Repeat your message')
-async def echo(ctx, *, message: str):
-    await ctx.send(f"📢 {ctx.author.name} says: {message}")
+@bot.command(name='hello')
+async def hello(ctx):
+    """Say hello"""
+    await ctx.send(f'👋 Hello {ctx.author.mention}!')
 
-# Command: !serverinfo
-@bot.command(name='serverinfo', help='Get server information')
-async def serverinfo(ctx):
-    guild = ctx.guild
-    
+@bot.command(name='info')
+async def info(ctx):
+    """Bot information"""
     embed = discord.Embed(
-        title=f"📊 {guild.name} Info",
-        color=discord.Color.purple()
+        title="Bot Info",
+        description="A simple Discord bot",
+        color=discord.Color.green()
     )
     
-    embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
-    
-    embed.add_field(name="Owner", value=guild.owner.mention, inline=True)
-    embed.add_field(name="Members", value=guild.member_count, inline=True)
-    embed.add_field(name="Created", value=guild.created_at.strftime("%B %d, %Y"), inline=True)
-    embed.add_field(name="Channels", value=len(guild.channels), inline=True)
-    embed.add_field(name="Roles", value=len(guild.roles), inline=True)
-    embed.add_field(name="Boost Level", value=guild.premium_tier, inline=True)
+    embed.add_field(name="Python", value=sys.version.split()[0], inline=True)
+    embed.add_field(name="Library", value="discord.py", inline=True)
+    embed.add_field(name="Servers", value=len(bot.guilds), inline=True)
     
     await ctx.send(embed=embed)
 
-# Error handler for missing permissions
 @bot.event
 async def on_command_error(ctx, error):
+    """Handle errors gracefully"""
     if isinstance(error, commands.CommandNotFound):
         await ctx.send("❌ Command not found. Use `!help` to see available commands.")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(f"❌ Missing argument. Use `!help {ctx.command}` for usage.")
     else:
-        print(f"Error: {error}")
+        logger.error(f"Command error: {error}")
+        await ctx.send("❌ An error occurred. Please try again.")
 
-# Run the bot
-if __name__ == "__main__":
-    print("🚀 Starting bot...")
-    print(f"📁 Token loaded: {'Yes' if TOKEN else 'No'}")
+# Health check endpoint for Render
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Discord Bot is running!", 200
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+def run_flask():
+    """Run Flask in background for health checks"""
+    import threading
+    import waitress
     
+    def run():
+        waitress.serve(app, host="0.0.0.0", port=8080)
+    
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    logger.info("✅ Flask health check server started on port 8080")
+
+# Start everything
+if __name__ == "__main__":
+    logger.info("🚀 Starting Discord bot...")
+    
+    # Start Flask for health checks (Render needs this)
+    run_flask()
+    
+    # Start Discord bot
     try:
         bot.run(TOKEN)
     except discord.errors.LoginFailure:
-        print("❌ ERROR: Invalid token! Check your .env file.")
+        logger.error("❌ Invalid Discord token!")
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        logger.error(f"❌ Unexpected error: {e}")
