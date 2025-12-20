@@ -64,7 +64,7 @@ class ScheduledMessages:
     def is_within_time_range(self):
         """Check if current time is between 6 PM and 2 AM"""
         # Set your timezone - change to your local timezone
-        tz = pytz.timezone('America/New_York')  # Change this!
+        tz = pytz.timezone('Africa/Algiers')  # Change this!
         now = datetime.now(tz)
         current_time = now.time()
         
