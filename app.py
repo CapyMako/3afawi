@@ -37,16 +37,16 @@ class ScheduledMessages:
     def __init__(self, bot):
         self.bot = bot
         self.messages = [
-            "🌙 Good evening everyone! How's your night going?",
-            "✨ Late night coding session? Remember to take breaks!",
-            "🦉 Who else is awake at this hour?",
-            "💭 Evening thoughts: What did you learn today?",
-            "🎮 Anyone up for some late night gaming?",
-            "📚 Pro tip: The best ideas often come at night!",
-            "☕ Coffee or tea for your night shift?",
-            "🌟 Midnight motivation: You're doing great!",
-            "🎵 What's everyone listening to tonight?",
-            "🌃 The night is still young! What's your plan?"
+            "bsah firas nta bnin ahh",
+            "baraa ma ta3rafch tel3ab b zenyata",
+            "teroumet baraa hadik fel frach tenta9",
+            "yakho hadok baraa w firas chhal fayhin, roho dawcho!",
+            "ya l fermaja ta3 firas wektach tel9a lmotivation ya lfayeh lkelb",
+            "daymen nog3od w netfakar bali baraa horny for furries",
+            "baraa baraa baraa baraa baraa baraa baraa baraa  baraa  baraa  baraa  baraa googoogaga shut your mouth ffs",
+            "i'm feeling peacefull today bessah ki tfakart bali kayn firas smatetli",
+            "howa chofo kayn 3 3afawyin fi had l3alam, baraa, baraa, and baraa",
+            "m9wda tkon thab rejlin, mziya manich firas"
         ]
         self.last_message = None
         self.channel_id = None  # Set this to your channel ID
